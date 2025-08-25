@@ -1,0 +1,38 @@
+/* Navbar Buttons - Box Style */
+.nav-btn {
+  border-radius: 0; /* boxy corners */
+  padding: 8px 20px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #ffffff;
+  background-color: #007bff; /* primary navbar color */
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2); /* subtle shadow for depth */
+}
+
+.nav-btn:hover {
+  background-color: #0056b3; /* darker shade on hover */
+  transform: translateY(-1px); /* slight lift on hover */
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+}
+
+.nav-btn:active {
+  background-color: #004080; /* pressed color */
+  transform: translateY(1px); /* press down effect */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Optional: Secondary style */
+.nav-btn.secondary {
+  background-color: #6c757d; /* gray button */
+}
+
+.nav-btn.secondary:hover {
+  background-color: #565e64;
+}
+
+.nav-btn.secondary:active {
+  background-color: #43494e;
+}

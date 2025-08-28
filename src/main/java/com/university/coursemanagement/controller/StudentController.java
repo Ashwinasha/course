@@ -23,18 +23,46 @@ public class StudentController {
         return studentRepository.findAll();
     }
 
-    @PostMapping
-    public ResponseEntity<?> addStudent(@RequestBody Student student) {
-        // Check if studentId already exists
-        if (studentRepository.existsByStudentId(student.getStudentId())) {
-            return ResponseEntity
-                    .badRequest()
-                    .body("Student with ID " + student.getStudentId() + " already exists!");
-        }
-
-        Student savedStudent = studentRepository.save(student);
-        return ResponseEntity.ok(savedStudent);
+  @PostMapping
+public ResponseEntity<?> addStudent(@RequestBody Student student) {
+    // Check if studentId + course already exists
+    if (studentRepository.existsByStudentIdAndCourse(student.getStudentId(), student.getCourse())) {
+        return ResponseEntity
+                .badRequest()
+                .body("This student is already registered for the selected course!");
     }
+
+    Student savedStudent = studentRepository.save(student);
+    return ResponseEntity.ok(savedStudent);
+}
+
+@PutMapping("/{id}")
+public ResponseEntity<?> updateStudent(@PathVariable Long id, @RequestBody Student studentDetails) {
+    Optional<Student> studentOptional = studentRepository.findById(id);
+    if (!studentOptional.isPresent()) {
+        return ResponseEntity.notFound().build();
+    }
+
+    // Check if studentId + course exists in another record
+    Optional<Student> duplicateCheck = studentRepository
+            .findByStudentIdAndCourse(studentDetails.getStudentId(), studentDetails.getCourse());
+    if (duplicateCheck.isPresent() && !duplicateCheck.get().getId().equals(id)) {
+        return ResponseEntity
+                .badRequest()
+                .body("This student is already registered for the selected course!");
+    }
+
+    Student student = studentOptional.get();
+    student.setStudentId(studentDetails.getStudentId());
+    student.setName(studentDetails.getName());
+    student.setEmail(studentDetails.getEmail());
+    student.setCourse(studentDetails.getCourse());
+    student.setRegistrationDate(studentDetails.getRegistrationDate());
+
+    Student updatedStudent = studentRepository.save(student);
+    return ResponseEntity.ok(updatedStudent);
+}
+
 
 
     @DeleteMapping("/{id}")
@@ -42,29 +70,4 @@ public class StudentController {
         studentRepository.deleteById(id);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<?> updateStudent(@PathVariable Long id, @RequestBody Student studentDetails) {
-        Optional<Student> studentOptional = studentRepository.findById(id);
-        if (!studentOptional.isPresent()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        // Check if studentId exists in another record
-        Optional<Student> duplicateCheck = studentRepository.findByStudentId(studentDetails.getStudentId());
-        if (duplicateCheck.isPresent() && !duplicateCheck.get().getId().equals(id)) {
-            return ResponseEntity
-                    .badRequest()
-                    .body("Student with ID " + studentDetails.getStudentId() + " already exists!");
-        }
-
-        Student student = studentOptional.get();
-        student.setStudentId(studentDetails.getStudentId());
-        student.setName(studentDetails.getName());
-        student.setEmail(studentDetails.getEmail());
-        student.setCourse(studentDetails.getCourse());
-        student.setRegistrationDate(studentDetails.getRegistrationDate());
-
-        Student updatedStudent = studentRepository.save(student);
-        return ResponseEntity.ok(updatedStudent);
-    }
 }

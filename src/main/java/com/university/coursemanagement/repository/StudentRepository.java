@@ -6,9 +6,13 @@ import java.util.Optional;
 
 public interface StudentRepository extends JpaRepository<Student, Long> {
     
-    // Check if a student with this studentId exists
+    // Check if a student with this studentId exists (global)
     boolean existsByStudentId(String studentId);
 
-    // Find a student by studentId
+    // Find a student by studentId (global)
     Optional<Student> findByStudentId(String studentId);
+
+    boolean existsByStudentIdAndCourse(String studentId, String course);
+
+    Optional<Student> findByStudentIdAndCourse(String studentId, String course);
 }

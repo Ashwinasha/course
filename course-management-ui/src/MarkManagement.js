@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 function MarkManagement() {
   const [marks, setMarks] = useState([]);
@@ -18,9 +19,8 @@ function MarkManagement() {
 
   // Fetch marks from backend
   const fetchMarks = () => {
-    fetch('http://localhost:8080/api/marks')
-      .then(res => res.json())
-      .then(data => setMarks(Array.isArray(data) ? data : []))
+    axios.get('http://localhost:8080/api/marks')
+      .then(res => setMarks(Array.isArray(res.data) ? res.data : []))
       .catch(() => {
         setMessage('Failed to fetch marks');
         setShowMessageModal(true);
@@ -29,9 +29,8 @@ function MarkManagement() {
 
   // Fetch students from backend
   const fetchStudents = () => {
-    fetch('http://localhost:8080/api/students')
-      .then(res => res.json())
-      .then(data => setStudents(Array.isArray(data) ? data : []))
+    axios.get('http://localhost:8080/api/students')
+      .then(res => setStudents(Array.isArray(res.data) ? res.data : []))
       .catch(() => {
         setMessage('Failed to fetch students');
         setShowMessageModal(true);
@@ -40,9 +39,8 @@ function MarkManagement() {
 
   // Fetch courses from backend
   const fetchCourses = () => {
-    fetch('http://localhost:8080/api/courses')
-      .then(res => res.json())
-      .then(data => setCourses(Array.isArray(data) ? data : []))
+    axios.get('http://localhost:8080/api/courses')
+      .then(res => setCourses(Array.isArray(res.data) ? res.data : []))
       .catch(() => {
         setMessage('Failed to fetch courses');
         setShowMessageModal(true);
@@ -64,57 +62,57 @@ function MarkManagement() {
   };
 
   // Handle form submit (Add or Update)
- const handleSubmit = (e) => {
-  e.preventDefault();
+  const handleSubmit = (e) => {
+    e.preventDefault();
 
-  // Check for duplicate (both add and edit)
-  const duplicate = marks.find(
-    (m) =>
-      m.studentId === studentId &&
-      m.courseCode === courseCode &&
-      m.id !== editingId // ignore the current editing record
-  );
+    // Check for duplicate (both add and edit)
+    const duplicate = marks.find(
+      (m) =>
+        m.studentId === studentId &&
+        m.courseCode === courseCode &&
+        m.id !== editingId // ignore the current editing record
+    );
 
-  if (duplicate) {
-    setMessage('Mark for this student and course already exists!');
-    setShowMessageModal(true);
-    return;
-  }
+    if (duplicate) {
+      setMessage('Mark for this student and course already exists!');
+      setShowMessageModal(true);
+      return;
+    }
 
-  const method = editingId ? 'PUT' : 'POST';
-  const url = editingId
-    ? `http://localhost:8080/api/marks/${editingId}`
-    : 'http://localhost:8080/api/marks';
-
-  fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+    const payload = {
       studentId,
       courseCode,
       marks: parseFloat(score),
-    }),
-  })
-    .then(async (res) => {
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to save mark');
-      }
-      return res.json();
-    })
-    .then(() => {
-      fetchMarks();
-      resetForm();
-      setMessage(editingId ? 'Mark updated successfully!' : 'Mark added successfully!');
-      setShowMessageModal(true);
-    })
-    .catch((err) => {
-      setMessage(err.message || 'Error saving mark');
-      setShowMessageModal(true);
-    });
-};
+    };
 
-
+    if (editingId) {
+      // Update existing mark
+      axios.put(`http://localhost:8080/api/marks/${editingId}`, payload)
+        .then(() => {
+          fetchMarks();
+          resetForm();
+          setMessage('✅ Mark updated successfully!');
+          setShowMessageModal(true);
+        })
+        .catch((err) => {
+          setMessage(err.response?.data?.message || 'Error updating mark');
+          setShowMessageModal(true);
+        });
+    } else {
+      // Add new mark
+      axios.post('http://localhost:8080/api/marks', payload)
+        .then(() => {
+          fetchMarks();
+          resetForm();
+          setMessage('✅ Mark added successfully!');
+          setShowMessageModal(true);
+        })
+        .catch((err) => {
+          setMessage(err.response?.data?.message || 'Error adding mark');
+          setShowMessageModal(true);
+        });
+    }
+  };
 
   // Fill form for editing a mark
   const handleEdit = (mark) => {
@@ -132,11 +130,8 @@ function MarkManagement() {
 
   // Confirm deletion
   const confirmDelete = () => {
-    fetch(`http://localhost:8080/api/marks/${deleteMarkId}`, {
-      method: 'DELETE',
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to delete mark');
+    axios.delete(`http://localhost:8080/api/marks/${deleteMarkId}`)
+      .then(() => {
         fetchMarks();
         setShowDeleteModal(false);
         setMessage('Mark deleted successfully!');
@@ -211,24 +206,23 @@ function MarkManagement() {
               />
             </div>
 
-           <div className="col-md-2 d-flex justify-content-end align-items-center gap-2">
-                {editingId && (
-                    <button
-                    type="button"
-                    className="btn btn-danger"
-                    onClick={resetForm}
-                    >
-                    Cancel
-                    </button>
-                )}
+            <div className="col-md-2 d-flex justify-content-end align-items-center gap-2">
+              {editingId && (
                 <button
-                    type="submit"
-                    className={`btn ${editingId ? 'btn-warning' : 'btn-primary'}`}
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={resetForm}
                 >
-                    {editingId ? 'Update' : 'Add Mark'}
+                  Cancel
                 </button>
-                </div>
-
+              )}
+              <button
+                type="submit"
+                className={`btn ${editingId ? 'btn-warning' : 'btn-primary'}`}
+              >
+                {editingId ? 'Update' : 'Add Mark'}
+              </button>
+            </div>
           </form>
         </div>
       </div>
@@ -238,7 +232,10 @@ function MarkManagement() {
         <div className="card-body">
           <h4 className="card-title mb-4 text-primary fw-bold">📋 Marks List</h4>
 
-          <div className="table-responsive rounded-4 overflow-hidden border">
+          <div
+            className="table-responsive rounded-4 overflow-auto border"
+            style={{ maxHeight: '300px' }} // Scroll after ~5 rows
+          >
             <table className="table table-hover table-bordered align-middle mb-0 text-center">
               <thead className="text-dark table-primary">
                 <tr>
@@ -265,7 +262,7 @@ function MarkManagement() {
                       <td>{mark.studentId}</td>
                       <td>{mark.courseCode}</td>
                       <td>{mark.marks}</td>
-                      <td>{mark.gpa || '-'}</td>
+                      <td>{mark.gpa !== null && mark.gpa !== undefined ? mark.gpa.toFixed(2) : '-'}</td>
                       <td>{mark.grade || '-'}</td>
                       <td>
                         <div className="d-flex flex-wrap justify-content-center gap-2">

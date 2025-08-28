@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 function StudentRegistration() {
   const [students, setStudents] = useState([]);
@@ -17,27 +18,27 @@ function StudentRegistration() {
   const [deleteStudentId, setDeleteStudentId] = useState(null);
 
   // Fetch students
-  const fetchStudents = () => {
+  const fetchStudents = async () => {
     setLoading(true);
-    fetch('http://localhost:8080/api/students')
-      .then(res => res.json())
-      .then(data => {
-        setStudents(Array.isArray(data) ? data : []);
-        setLoading(false);
-      })
-      .catch(err => {
-        setMessage('Error loading students: ' + err.message);
-        setShowMessageModal(true);
-        setLoading(false);
-      });
+    try {
+      const res = await axios.get('http://localhost:8080/api/students');
+      setStudents(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      setMessage('Error loading students: ' + (err.response?.data?.message || err.message));
+      setShowMessageModal(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Fetch courses
-  const fetchCourses = () => {
-    fetch('http://localhost:8080/api/courses')
-      .then(res => res.json())
-      .then(data => setCourses(Array.isArray(data) ? data : []))
-      .catch(err => console.error('Error loading courses:', err));
+  const fetchCourses = async () => {
+    try {
+      const res = await axios.get('http://localhost:8080/api/courses');
+      setCourses(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error('Error loading courses:', err);
+    }
   };
 
   useEffect(() => {
@@ -53,50 +54,51 @@ function StudentRegistration() {
     setEditingId(null);
   };
 
-  const handleSubmit = (e) => {
-  e.preventDefault();
-  setLoading(true);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
 
-  // Check for duplicate Student ID
-  const duplicate = students.find(
-    (s) => s.studentId === studentId && s.id !== editingId
-  );
+    // Check for duplicate Student ID
+    const duplicate = students.find(
+      (s) => s.studentId === studentId && s.course === course && s.id !== editingId
+    );
 
-  if (duplicate) {
-    setMessage('Student ID already exists! Please use a different ID.');
-    setShowMessageModal(true);
-    setLoading(false);
-    return;
-  }
+    if (duplicate) {
+      setMessage('This student is already registered for the selected course!');
+      setShowMessageModal(true);
+      setLoading(false);
+      return;
+    }
 
-  const method = editingId ? 'PUT' : 'POST';
-  const url = editingId
-    ? `http://localhost:8080/api/students/${editingId}`
-    : 'http://localhost:8080/api/students';
+    try {
+      if (editingId) {
+        await axios.put(`http://localhost:8080/api/students/${editingId}`, {
+          studentId,
+          name,
+          email,
+          course,
+        });
+        setMessage('✅ Student updated successfully!');
+      } else {
+        await axios.post('http://localhost:8080/api/students', {
+          studentId,
+          name,
+          email,
+          course,
+        });
+        setMessage('✅ Student registered successfully!');
+      }
 
-  fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ studentId, name, email, course }),
-  })
-    .then(res => {
-      if (!res.ok) throw new Error('Failed to save student');
-      return res.json();
-    })
-    .then(() => {
       fetchStudents();
       resetForm();
-      setMessage(editingId ? 'Student updated successfully!' : 'Student registered successfully!');
       setShowMessageModal(true);
-      setLoading(false);
-    })
-    .catch(err => {
-      setMessage('Error: ' + err.message);
+    } catch (err) {
+      setMessage('Error: ' + (err.response?.data?.message || err.message));
       setShowMessageModal(true);
+    } finally {
       setLoading(false);
-    });
-};
-
+    }
+  };
 
   const handleEdit = (student) => {
     setEditingId(student.id);
@@ -111,25 +113,20 @@ function StudentRegistration() {
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     setLoading(true);
-    fetch(`http://localhost:8080/api/students/${deleteStudentId}`, {
-      method: 'DELETE',
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to delete student');
-        fetchStudents();
-        setShowDeleteModal(false);
-        setMessage('Student deleted successfully!');
-        setShowMessageModal(true);
-        setLoading(false);
-      })
-      .catch(err => {
-        setShowDeleteModal(false);
-        setMessage('Error deleting student: ' + err.message);
-        setShowMessageModal(true);
-        setLoading(false);
-      });
+    try {
+      await axios.delete(`http://localhost:8080/api/students/${deleteStudentId}`);
+      fetchStudents();
+      setMessage('Student deleted successfully!');
+      setShowMessageModal(true);
+    } catch (err) {
+      setMessage('Error deleting student: ' + (err.response?.data?.message || err.message));
+      setShowMessageModal(true);
+    } finally {
+      setShowDeleteModal(false);
+      setLoading(false);
+    }
   };
 
   return (
@@ -233,11 +230,14 @@ function StudentRegistration() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table with scroll */}
       <div className="card shadow-sm border-primary rounded-4">
         <div className="card-body">
           <h4 className="card-title mb-4 text-primary fw-bold">📋 Student List</h4>
-          <div className="table-responsive rounded-4 overflow-hidden border">
+          <div
+            className="table-responsive rounded-4 overflow-auto border"
+            style={{ maxHeight: '300px' }} // Scroll after ~5 rows
+          >
             <table className="table table-hover table-bordered align-middle mb-0">
               <thead className="text-dark table-primary text-center">
                 <tr>

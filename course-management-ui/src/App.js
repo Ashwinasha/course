@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
-
-
-function App() {
+function CourseManagement() {
   const [courses, setCourses] = useState([]);
   const [title, setTitle] = useState('');
   const [code, setCode] = useState('');
@@ -17,16 +15,21 @@ function App() {
   const [message, setMessage] = useState('');
   const [showMessageModal, setShowMessageModal] = useState(false);
 
+  const [loading, setLoading] = useState(false);
+
   // Fetch all courses
   const fetchCourses = () => {
+    setLoading(true);
     fetch("http://localhost:8080/api/courses")
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data)) {
-          setCourses(data);
-        } else {
-          setCourses([]);
-        }
+        setCourses(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(err => {
+        setMessage('Error loading courses: ' + err.message);
+        setShowMessageModal(true);
+        setLoading(false);
       });
   };
 
@@ -34,18 +37,13 @@ function App() {
     fetchCourses();
   }, []);
 
-  // Reset form to add mode
+  // Reset form
   const resetForm = () => {
     setEditingId(null);
     setCode('');
     setTitle('');
     setDescription('');
     setCredits('');
-  };
-
-  // Open Add New Course (reset form)
-  const handleAddNew = () => {
-    resetForm();
   };
 
   // Fill form with course data for editing
@@ -59,39 +57,39 @@ function App() {
 
   // Submit add or edit
   const handleSubmit = (e) => {
-  e.preventDefault();
+    e.preventDefault();
+    setLoading(true);
 
-  const method = editingId ? 'PUT' : 'POST';
-  const url = editingId
-    ? `http://localhost:8080/api/courses/${editingId}`
-    : `http://localhost:8080/api/courses`;
+    const method = editingId ? 'PUT' : 'POST';
+    const url = editingId
+      ? `http://localhost:8080/api/courses/${editingId}`
+      : `http://localhost:8080/api/courses`;
 
-  fetch(url, {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code, title, description, credits })
-  })
-    .then(async res => {
-      if (!res.ok) {
-        // Try to read error message from response body
-        const errorText = await res.text();
-        throw new Error(errorText || 'Failed to save course');
-      }
-      return res.json();
+    fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, title, description, credits })
     })
-    .then(() => {
-      fetchCourses();
-      resetForm();
-      setMessage(editingId ? 'Course updated successfully!' : 'Course added successfully!');
-      setShowMessageModal(true);
-    })
-    .catch(err => {
-      // Display duplicate code or other backend errors
-      setMessage(err.message.includes('Course code') ? err.message : 'Something went wrong. Please try again.');
-      setShowMessageModal(true);
-    });
-};
-
+      .then(async res => {
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(errorText || 'Failed to save course');
+        }
+        return res.json();
+      })
+      .then(() => {
+        fetchCourses();
+        resetForm();
+        setMessage(editingId ? '✅ Course updated successfully!' : '✅ Course added successfully!');
+        setShowMessageModal(true);
+        setLoading(false);
+      })
+      .catch(err => {
+        setMessage(err.message.includes('Course code') ? err.message : 'Something went wrong. Please try again.');
+        setShowMessageModal(true);
+        setLoading(false);
+      });
+  };
 
   // Open delete modal
   const openDeleteModal = (id) => {
@@ -101,6 +99,7 @@ function App() {
 
   // Confirm delete
   const confirmDelete = () => {
+    setLoading(true);
     fetch(`http://localhost:8080/api/courses/${deleteCourseId}`, {
       method: 'DELETE'
     })
@@ -108,30 +107,30 @@ function App() {
         if (!res.ok) throw new Error('Failed to delete course');
         fetchCourses();
         setShowDeleteModal(false);
-        setMessage('Course deleted successfully!');
+        setMessage('🗑 Course deleted successfully!');
         setShowMessageModal(true);
+        setLoading(false);
       })
-      .catch(() => {
+      .catch(err => {
         setShowDeleteModal(false);
-        setMessage('Failed to delete course. Please try again.');
+        setMessage('Error deleting course: ' + err.message);
         setShowMessageModal(true);
+        setLoading(false);
       });
   };
 
   return (
-    <div 
-      className="container mt-5 p-4 rounded shadow"
-      style={{ backgroundColor: '#f8f9fa', minHeight: '90vh' }}
-    >
+    <div className="container mt-5 p-4 rounded shadow" style={{ backgroundColor: '#f8f9fa', minHeight: '90vh' }}>
+      
+      {/* Header */}
       <div className="bg-dark text-white py-3 px-4 rounded-3 shadow mb-4 text-center">
         <h2 className="m-0 fw-bold">🎓 University Course Management</h2>
       </div>
 
-      
+      {/* Form Card */}
       <div className="card mb-4 shadow-sm border-primary">
         <div className="card-body">
           <h5 className="card-title text-primary mb-4">{editingId ? '✏️ Edit Course' : '➕ Add New Course'}</h5>
-          
           <form onSubmit={handleSubmit} className="px-1">
             <div className="row g-3">
               <div className="col-md-3">
@@ -144,6 +143,7 @@ function App() {
                     value={code}
                     onChange={e => setCode(e.target.value)}
                     required
+                    disabled={loading}
                   />
                   <label htmlFor="courseCode">Course Code</label>
                 </div>
@@ -158,6 +158,7 @@ function App() {
                     value={title}
                     onChange={e => setTitle(e.target.value)}
                     required
+                    disabled={loading}
                   />
                   <label htmlFor="courseTitle">Course Title</label>
                 </div>
@@ -173,6 +174,7 @@ function App() {
                     onChange={e => setCredits(e.target.value)}
                     min="0"
                     required
+                    disabled={loading}
                   />
                   <label htmlFor="credits">Credits</label>
                 </div>
@@ -188,6 +190,7 @@ function App() {
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 required
+                disabled={loading}
               ></textarea>
               <label htmlFor="description">Course Description</label>
             </div>
@@ -198,153 +201,102 @@ function App() {
                   type="button"
                   className="btn btn-danger me-2"
                   onClick={resetForm}
+                  disabled={loading}
                 >
                   Cancel
                 </button>
               )}
-              <button 
-                type="submit" 
-                className={`btn ${editingId ? 'btn-warning' : 'btn-primary'}`}
-              >
-                {editingId ? 'Update Course' : 'Add Course'}
+              <button type="submit" className={`btn ${editingId ? 'btn-warning' : 'btn-primary'}`} disabled={loading}>
+                {loading ? 'Processing...' : editingId ? 'Update Course' : 'Add Course'}
               </button>
             </div>
           </form>
-
         </div>
       </div>
 
       {/* Courses Table */}
-     <div className="card shadow-sm border-primary rounded-4">
-  <div className="card-body">
-    <h4 className="card-title mb-4 text-primary fw-bold">
-      📋 Course List
-    </h4>
-
-    {/* Outer wrapper to apply rounding and clipping */}
-    <div className="table-responsive rounded-4 overflow-hidden border">
-      <table className="table table-hover table-bordered align-middle mb-0">
-        <thead className="text-dark table-primary text-center">
-          <tr>
-            <th className="fw-semibold">Code</th>
-            <th className="fw-semibold">Title</th>
-            <th className="fw-semibold">Description</th>
-            <th className="fw-semibold">Credits</th>
-            <th className="fw-semibold">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {courses.length === 0 ? (
-            <tr>
-              <td colSpan="5" className="text-center text-muted py-4">
-                No courses found.
-              </td>
-            </tr>
-          ) : (
-            courses.map(course => (
-              <tr key={course.id}>
-                <td className="text-center">{course.code}</td>
-                <td>{course.title}</td>
-                <td>{course.description}</td>
-                <td className="text-center">
-                  <span className="badge text-dark px-3 py-2 rounded-pill">
-                    {course.credits}
-                  </span>
-                </td>
-                <td className="text-center">
-                  <div className="d-flex flex-wrap justify-content-center gap-2">
-                    <button
-                      className="btn btn-sm btn-primary"
-                      onClick={() => handleEdit(course)}
-                      title="Edit Course"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="btn btn-sm btn-danger"
-                      onClick={() => openDeleteModal(course.id)}
-                      title="Delete Course"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
+      <div className="card shadow-sm border-primary rounded-4">
+        <div className="card-body">
+          <h4 className="card-title mb-4 text-primary fw-bold">📋 Course List</h4>
+          {/* Scrollable table container */}
+          <div
+            className="table-responsive rounded-4 overflow-auto border"
+            style={{ maxHeight: '300px' }} // Scroll after ~5 rows
+          >
+            <table className="table table-hover table-bordered align-middle mb-0">
+              <thead className="text-dark table-primary text-center">
+                <tr>
+                  <th>Code</th>
+                  <th>Title</th>
+                  <th>Description</th>
+                  <th>Credits</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && courses.length === 0 ? (
+                  <tr><td colSpan="5" className="text-center">Loading...</td></tr>
+                ) : courses.length === 0 ? (
+                  <tr><td colSpan="5" className="text-center text-muted">No courses found.</td></tr>
+                ) : (
+                  courses.map(course => (
+                    <tr key={course.id}>
+                      <td className="text-center">{course.code}</td>
+                      <td>{course.title}</td>
+                      <td>{course.description}</td>
+                      <td className="text-center">
+                        <span className="badge text-dark px-3 py-2 rounded-pill">{course.credits}</span>
+                      </td>
+                      <td className="text-center">
+                        <div className="d-flex flex-wrap justify-content-center gap-2">
+                          <button className="btn btn-sm btn-primary" onClick={() => handleEdit(course)} disabled={loading}>Edit</button>
+                          <button className="btn btn-sm btn-danger" onClick={() => openDeleteModal(course.id)} disabled={loading}>Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
       {/* Delete Confirmation Modal */}
-      <div
-        className={`modal fade ${showDeleteModal ? 'show d-block' : ''}`}
-        tabIndex="-1"
-        style={{ backgroundColor: showDeleteModal ? 'rgba(0,0,0,0.5)' : 'transparent' }}
-        aria-modal={showDeleteModal ? "true" : "false"}
-        role="dialog"
-      >
-        <div className="modal-dialog modal-dialog-centered">
-          <div className="modal-content border-danger">
-            <div className="modal-header bg-danger text-white">
-              <h5 className="modal-title">Confirm Delete</h5>
-              <button
-                type="button"
-                className="btn-close btn-close-white"
-                onClick={() => setShowDeleteModal(false)}
-              ></button>
-            </div>
-            <div className="modal-body">
-              Are you sure you want to delete this course?
-            </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setShowDeleteModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={confirmDelete}
-              >
-                Delete
-              </button>
+      {showDeleteModal && (
+        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content border-danger">
+              <div className="modal-header bg-danger text-white">
+                <h5 className="modal-title">Confirm Delete</h5>
+                <button className="btn-close btn-close-white" onClick={() => setShowDeleteModal(false)}></button>
+              </div>
+              <div className="modal-body">Are you sure you want to delete this course?</div>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)} disabled={loading}>Cancel</button>
+                <button className="btn btn-danger" onClick={confirmDelete} disabled={loading}>Delete</button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Message Modal */}
-      <div
-        className={`modal fade ${showMessageModal ? 'show d-block' : ''}`}
-        tabIndex="-1"
-        style={{ backgroundColor: showMessageModal ? 'rgba(0,0,0,0.5)' : 'transparent' }}
-        aria-modal={showMessageModal ? "true" : "false"}
-        role="dialog"
-      >
-        <div className="modal-dialog modal-dialog-centered">
-          <div className="modal-content border-primary">
-            <div className="modal-body text-center">
-              <p>{message}</p>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => setShowMessageModal(false)}
-              >
-                OK
-              </button>
+      {showMessageModal && (
+        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content border-primary">
+              <div className="modal-body text-center">
+                <p>{message}</p>
+                <button className="btn btn-primary" onClick={() => setShowMessageModal(false)}>OK</button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
     </div>
   );
 }
 
-export default App;
+export default CourseManagement;
